@@ -1,0 +1,20 @@
+{
+  "name": "dev",
+  "description": "General-purpose development guards: blocks hardcoded secrets, direct main pushes, destructive SQL migrations, and --no-verify bypasses. Works with any project.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Emmanuel Roux"
+  },
+  "license": "MIT",
+  "keywords": [
+    "development",
+    "guards",
+    "security",
+    "git",
+    "migration",
+    "secrets"
+  ],
+  "category": "development",
+  "skills": "skill/",
+  "hooks": "hooks/policy.json"
+}
