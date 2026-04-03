@@ -11,29 +11,50 @@ TEST_DIR     := test
 .PHONY: test test.unit
 
 check: lint
-qa: check test  ## Quality gate
-test: test.unit  ## Run all tests
+qa: check test
+test: test.unit
 
-sync:  ## Install dependencies (bats)
+sync:
 	command -v bats >/dev/null || brew install bats-core
 
-fmt:  ## Format (shellcheck --format gcc for CI)
+fmt:
 	find $(COPILOT_DIR)/hooks/scripts -name '*.sh' -exec shellcheck -f gcc {} + 2>/dev/null || true
 
-lint:  ## Lint shell scripts with shellcheck
+lint:
 	find $(COPILOT_DIR)/hooks/scripts -name '*.sh' -exec shellcheck {} +
 
-typecheck:  ## No typecheck needed (bash only)
+typecheck:
 	true
 
-test.unit:  ## Run bats unit tests
+test.unit:
 	$(BATS) $(TEST_DIR)/copilot-cli/hooks.bats
 
-clean:  ## Remove log files
+clean:
 	rm -f $(COPILOT_DIR)/hooks/logs/*.log
 
-distclean: clean  ## Deep clean
+distclean: clean
 
-help:  ## Show available targets
-	printf "\033[1;36magent-plugin-dev\033[0m — make targets\n\n"
-	grep -E '^[a-zA-Z_.]+:.*##' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*## "}; {printf "  \033[36m%-22s\033[0m %s\n", $$1, $$2}'
+help:
+	printf "\033[36m"
+	printf "╔═╗╦  ╦ ╦╔═╗ ╦ ╔╗╔\n"
+	printf "╠═╝║  ║ ║║╠╗ ║ ║║║\n"
+	printf "╝  ╩═╝╚═╝╚═╝ ╩ ╝╚╝\n"
+	printf "\033[0m\n"
+	printf "Usage: make [target]\n\n"
+	printf "\033[1;35mSetup:\033[0m\n"
+	printf "  sync            - Install dependencies (bats)\n"
+	printf "\n"
+	printf "\033[1;35mDev:\033[0m\n"
+	printf "  fmt             - Format shell scripts\n"
+	printf "  lint            - Lint shell scripts\n"
+	printf "  typecheck       - Type validation\n"
+	printf "  check           - fmt + lint + typecheck\n"
+	printf "  qa              - check + test (quality gate)\n"
+	printf "\n"
+	printf "\033[1;35mTest:\033[0m\n"
+	printf "  test            - Run all tests\n"
+	printf "  test.unit       - Run bats unit tests\n"
+	printf "\n"
+	printf "\033[1;35mCleanup:\033[0m\n"
+	printf "  clean           - Remove log files\n"
+	printf "  distclean       - Deep clean\n"
