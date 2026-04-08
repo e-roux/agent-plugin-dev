@@ -16,6 +16,10 @@
     "self-documenting"
   ],
   "category": "development",
+  "_meta": {
+    "copilotCliVersion": "1.0.21",
+    "lastVerified": "2026-04-08"
+  },
   "skills": "skills/",
   "hooks": "hooks/policy.json"
 }
