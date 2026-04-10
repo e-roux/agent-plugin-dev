@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 
-SCRIPTS_DIR="$BATS_TEST_DIRNAME/../../copilot-cli/hooks/scripts"
+SCRIPTS_DIR="$BATS_TEST_DIRNAME/../../hooks/scripts"
 
 # ── session-start.sh ──────────────────────────────────────────────────────────
 
