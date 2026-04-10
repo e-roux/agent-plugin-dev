@@ -1,7 +1,7 @@
 {
   "name": "dev",
   "description": "General-purpose development guards: blocks hardcoded secrets, direct main pushes, destructive SQL migrations, --no-verify bypasses, and comment lines in source code. Works with any project.",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "author": {
     "name": "Emmanuel Roux"
   },
@@ -17,8 +17,8 @@
   ],
   "category": "development",
   "_meta": {
-    "copilotCliVersion": "1.0.21",
-    "lastVerified": "2026-04-08"
+    "copilotCliVersion": "1.0.22",
+    "lastVerified": "2026-04-10"
   },
   "skills": "skills/",
   "hooks": "hooks/policy.json"
