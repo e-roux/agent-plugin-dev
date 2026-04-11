@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.3.2]
+
+- Add `postToolUse` output redaction hook: detects and strips GitHub PATs, AWS keys, OpenAI keys, private keys, and long hex tokens from bash output before the LLM sees them via `modifiedResult` (CLI v1.0.24)
+
 ## [0.3.1]
 
 - Bump Copilot CLI version to 1.0.24; no content changes

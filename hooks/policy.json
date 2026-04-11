@@ -14,6 +14,13 @@
         "bash": "hooks/scripts/pre-tool.sh",
         "timeoutSec": 15
       }
+    ],
+    "postToolUse": [
+      {
+        "type": "command",
+        "bash": "bash hooks/scripts/post-tool.sh",
+        "timeoutSec": 10
+      }
     ]
   }
 }
