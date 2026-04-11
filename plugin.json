@@ -1,7 +1,7 @@
 {
   "name": "dev",
   "description": "General-purpose development guards: blocks hardcoded secrets, direct main pushes, destructive SQL migrations, --no-verify bypasses, and comment lines in source code. Works with any project.",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "author": {
     "name": "Emmanuel Roux"
   },
