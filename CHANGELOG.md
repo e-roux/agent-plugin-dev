@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.3.1]
+
+- Bump Copilot CLI version to 1.0.24; no content changes
+
 ## [0.2.1]
 
 - Bump Copilot CLI version to 1.0.22; no content changes
