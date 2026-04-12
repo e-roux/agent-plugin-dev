@@ -280,3 +280,52 @@ SCRIPTS_DIR="$BATS_TEST_DIRNAME/../../hooks/scripts"
   [ "$status" -eq 0 ]
   [ -z "$output" ]
 }
+
+# ── pipeline-chainguard.sh ────────────────────────────────────────────────────
+
+@test "chainguard: ignores non-bash tools" {
+  local input='{"toolName":"edit","toolArgs":{"path":"/tmp/f.go","new_str":"x"},"toolResult":{"textResultForLlm":"ok","resultType":"success"}}'
+  run bash -c "echo '$input' | '$SCRIPTS_DIR/pipeline-chainguard.sh'"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
+@test "chainguard: ignores bash commands without git push" {
+  local input='{"toolName":"bash","toolArgs":{"command":"make test"},"toolResult":{"textResultForLlm":"ok","resultType":"success"}}'
+  run bash -c "echo '$input' | '$SCRIPTS_DIR/pipeline-chainguard.sh'"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
+@test "chainguard: detects git push and returns additionalContext" {
+  local input='{"toolName":"bash","toolArgs":{"command":"git push origin feat/ci-check"},"toolResult":{"textResultForLlm":"To github.com:user/repo.git\n abc1234..def5678 feat/ci-check -> feat/ci-check","resultType":"success"}}'
+  run bash -c "echo '$input' | '$SCRIPTS_DIR/pipeline-chainguard.sh'"
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '.additionalContext' >/dev/null
+  [[ "$output" == *"Pipeline Chainguard"* ]]
+}
+
+@test "chainguard: detects failed push and warns instead of CI check" {
+  local input='{"toolName":"bash","toolArgs":{"command":"git push origin feat/broken"},"toolResult":{"textResultForLlm":"error: failed to push some refs to remote","resultType":"success"}}'
+  run bash -c "echo '$input' | '$SCRIPTS_DIR/pipeline-chainguard.sh'"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"push FAILED"* ]]
+}
+
+@test "chainguard: detects git push without explicit remote/branch" {
+  local input='{"toolName":"bash","toolArgs":{"command":"git push"},"toolResult":{"textResultForLlm":"Everything up-to-date","resultType":"success"}}'
+  run bash -c "echo '$input' | '$SCRIPTS_DIR/pipeline-chainguard.sh'"
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '.additionalContext' >/dev/null
+  [[ "$output" == *"Pipeline Chainguard"* ]]
+}
+
+@test "chainguard: mentions gh run commands when gh is available" {
+  if ! command -v gh &>/dev/null; then
+    skip "gh CLI not installed"
+  fi
+  local input='{"toolName":"bash","toolArgs":{"command":"git push origin feat/test"},"toolResult":{"textResultForLlm":"pushed","resultType":"success"}}'
+  run bash -c "echo '$input' | '$SCRIPTS_DIR/pipeline-chainguard.sh'"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"gh run"* ]]
+}

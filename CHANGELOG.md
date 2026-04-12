@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.4.0]
+
+### Added
+
+- **pipeline-chainguard** (Layer 1): `postToolUse` shell hook that detects
+  `git push` and injects `additionalContext` instructing the agent to check CI
+  status via `gh run list` (GitHub) or `glab ci status` (GitLab). Handles
+  failed pushes, bare pushes, and explicit remote/branch arguments.
+- **pipeline-chainguard** (Layer 2): opt-in CLI extension
+  (`extensions/pipeline-chainguard/extension.mjs`) that autonomously monitors
+  CI after push — waits for pipeline registration, polls status, and sends
+  failure logs back to the agent via `session.send()`. Registers a
+  `check_ci_pipeline` custom tool for manual checks with optional wait mode.
+- 6 bats tests covering chainguard detection, failed push handling, bare push
+  fallback, and provider-specific output.
+- Session-start banner now mentions pipeline-chainguard guard.
+
 ## [0.3.2]
 
 - Add `postToolUse` output redaction hook: detects and strips GitHub PATs, AWS keys, OpenAI keys, private keys, and long hex tokens from bash output before the LLM sees them via `modifiedResult` (CLI v1.0.24)
