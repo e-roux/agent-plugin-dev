@@ -85,6 +85,19 @@ Applies to: `.go`, `.ts`, `.tsx`, `.js`, `.jsx`, `.py`, `.rs`, `.java`, `.c`, `.
 Does NOT apply to: test files, Makefiles, shell scripts, config files (`.json`, `.yaml`, `.toml`), markdown.
 Shebang lines (`#!/`) are always allowed.
 
+### 5. Pipeline Chainguard
+
+**After every `git push`, check CI pipeline status before continuing.**
+
+The agent is instructed to wait for the pipeline to register, then check status using `gh run list` (GitHub) or `glab ci status` (GitLab). If the pipeline fails, the agent must diagnose and fix before proceeding.
+
+```bash
+# Agent will be instructed to run:
+sleep 15 && gh run list --branch <branch> --limit 3 --json status,conclusion,name
+gh run watch --exit-status    # wait for completion
+gh run view <run-id> --log-failed  # diagnose failures
+```
+
 ## When Guards Fire
 
 | Guard | Tool | Condition |
@@ -93,6 +106,7 @@ Shebang lines (`#!/`) are always allowed.
 | no-comments-guard | `edit`, `create` | Detects comment lines (`//`, `/*`, `#`) in code files |
 | branch-guard | `bash` | `git push/merge ... main` or `git commit --no-verify` |
 | migration-guard | `bash` | SQL command on migration path with DROP/TRUNCATE/DELETE |
+| pipeline-chainguard | `bash` (postToolUse) | Detects successful `git push`, injects CI check instructions |
 
 ## Scope
 
