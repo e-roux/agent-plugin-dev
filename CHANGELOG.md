@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.1]
+
+- Bump Copilot CLI version to 1.0.25, add SDK version 0.2.2 to metadata
+- Document `/env` command in skill for verifying guards are loaded (CLI 1.0.25)
+- Note remote session (`--remote`/`/remote`) compatibility in skill and extension docs
+- Skill instructions now persist correctly across conversation turns (CLI 1.0.25 fix)
+
 ## [0.4.0]
 
 ### Added

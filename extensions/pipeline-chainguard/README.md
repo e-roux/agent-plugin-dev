@@ -57,3 +57,7 @@ Use this extension when you want:
 - A dedicated `check_ci_pipeline` **custom tool** the agent can call
 
 Most projects only need Layer 1. Add this extension for mission-critical repos.
+
+## Remote Sessions
+
+When using `--remote` or `/remote` to control a CLI session remotely, the pipeline chainguard extension remains active. All push detection, polling, and failure reporting work identically in remote-controlled sessions.

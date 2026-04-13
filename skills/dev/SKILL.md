@@ -110,5 +110,9 @@ gh run view <run-id> --log-failed  # diagnose failures
 
 ## Scope
 
-These guards are **project-agnostic** — they apply to every repository in the session.
+These guards are **project-agnostic** — they apply to every repository in the session, including remote-controlled sessions (`--remote` / `/remote`).
 They complement project-specific hooks (qa-guard, scope-guard, etc.) that live in individual project repos.
+
+## Verification
+
+Run `/env` in any Copilot CLI session to confirm the dev plugin and its guards are loaded. The output shows active plugins, skills, and hooks.
