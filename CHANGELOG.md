@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.4.2]
+
+- Bump Copilot CLI version to 1.0.27 (SDK unchanged at 0.2.2)
+- Hook scripts use `COPILOT_PLUGIN_ROOT` env var (CLI 1.0.26) for log paths with fallback to dirname-based resolution
+- Document `COPILOT_PLUGIN_ROOT` availability in skill description
+
 ## [0.4.1]
 
 - Bump Copilot CLI version to 1.0.25, add SDK version 0.2.2 to metadata

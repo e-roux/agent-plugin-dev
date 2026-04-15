@@ -113,6 +113,8 @@ gh run view <run-id> --log-failed  # diagnose failures
 These guards are **project-agnostic** — they apply to every repository in the session, including remote-controlled sessions (`--remote` / `/remote`).
 They complement project-specific hooks (qa-guard, scope-guard, etc.) that live in individual project repos.
 
+Hook scripts receive the `COPILOT_PLUGIN_ROOT` env var (CLI ≥ 1.0.26) pointing to the plugin's installation directory, used for log paths and resource resolution.
+
 ## Verification
 
 Run `/env` in any Copilot CLI session to confirm the dev plugin and its guards are loaded. The output shows active plugins, skills, and hooks.
