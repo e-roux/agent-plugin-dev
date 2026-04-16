@@ -41,6 +41,50 @@ SCRIPTS_DIR="$BATS_TEST_DIRNAME/../../hooks/scripts"
   [[ "$output" == *"no-comments-guard"* ]]
 }
 
+# ── session-start.sh: requirements injection ──────────────────────────────────
+
+@test "session-start: shows 'Not Yet Configured' when no memory or requirements" {
+  local tmpdir
+  tmpdir=$(mktemp -d)
+  local input
+  input=$(jq -cn --arg cwd "$tmpdir" '{"timestamp":1704614400000,"cwd":$cwd,"source":"new"}')
+  local tmpf; tmpf=$(mktemp); echo "$input" > "$tmpf"
+  run bash -c "'$SCRIPTS_DIR/session-start.sh' < '$tmpf'"
+  rm -f "$tmpf"; rm -rf "$tmpdir"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Not Yet Configured"* ]]
+}
+
+@test "session-start: shows 'Active' when .agents/memory exists" {
+  local tmpdir
+  tmpdir=$(mktemp -d)
+  mkdir -p "$tmpdir/.agents/memory/lessons"
+  echo "Watch out for X" > "$tmpdir/.agents/memory/known-pitfalls.md"
+  local input
+  input=$(jq -cn --arg cwd "$tmpdir" '{"timestamp":1704614400000,"cwd":$cwd,"source":"new"}')
+  local tmpf; tmpf=$(mktemp); echo "$input" > "$tmpf"
+  run bash -c "'$SCRIPTS_DIR/session-start.sh' < '$tmpf'"
+  rm -f "$tmpf"; rm -rf "$tmpdir"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Active"* ]]
+  [[ "$output" == *"Watch out for X"* ]]
+}
+
+@test "session-start: lists requirement specs when doc/requirements exists" {
+  local tmpdir
+  tmpdir=$(mktemp -d)
+  mkdir -p "$tmpdir/doc/requirements/features"
+  echo "# Auth" > "$tmpdir/doc/requirements/features/auth.md"
+  local input
+  input=$(jq -cn --arg cwd "$tmpdir" '{"timestamp":1704614400000,"cwd":$cwd,"source":"new"}')
+  local tmpf; tmpf=$(mktemp); echo "$input" > "$tmpf"
+  run bash -c "'$SCRIPTS_DIR/session-start.sh' < '$tmpf'"
+  rm -f "$tmpf"; rm -rf "$tmpdir"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Active"* ]]
+  [[ "$output" == *"auth.md"* ]]
+}
+
 # ── pre-tool.sh: secrets-guard ────────────────────────────────────────────────
 
 @test "secrets: allows edit of non-code file (markdown)" {
