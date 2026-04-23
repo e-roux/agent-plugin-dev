@@ -4,6 +4,7 @@ SCRIPTS_DIR="$BATS_TEST_DIRNAME/../../hooks/scripts"
 
 # ── session-start.sh ──────────────────────────────────────────────────────────
 
+
 @test "session-start: exits successfully" {
   local input='{"timestamp":1704614400000,"cwd":"/tmp","source":"new"}'
   run bash -c "echo '$input' | '$SCRIPTS_DIR/session-start.sh'"
@@ -85,13 +86,18 @@ SCRIPTS_DIR="$BATS_TEST_DIRNAME/../../hooks/scripts"
   [[ "$output" == *"auth.md"* ]]
 }
 
+# ── pre-tool.sh: input format ─────────────────────────────────────────────────
+# preToolUse hook input: {"cwd":"...","toolCalls":[{"id":"...","name":"...","args":"<JSON-string>"}]}
+# .toolCalls[].args is a double-encoded JSON string; jq -r unwraps it to a JSON object.
+# postToolUse (used by chainguard) still uses {"toolName":"...","toolArgs":{...}} directly.
+
 # ── pre-tool.sh: secrets-guard ────────────────────────────────────────────────
 
 @test "secrets: allows edit of non-code file (markdown)" {
   local toolargs
-  toolargs=$(jq -n '{"path":"/tmp/README.md","old_str":"old","new_str":"JWT_SECRET := \"my-secret-key-here\""}')
+  toolargs=$(jq -n '{"path":"/tmp/README.md","old_str":"old","new_str":"MYSECRET := \"my-secret-key-here\""}')
   local input
-  input=$(jq -n --arg ta "$toolargs" '{"toolName":"edit","toolArgs":$ta}')
+  input=$(jq -n --arg args "$toolargs" '{"cwd":"/tmp","toolCalls":[{"id":"t1","name":"edit","args":$args}]}')
   local tmpf; tmpf=$(mktemp); echo "$input" > "$tmpf"
   run bash -c "'$SCRIPTS_DIR/pre-tool.sh' < '$tmpf'"
   rm -f "$tmpf"
@@ -105,7 +111,7 @@ SCRIPTS_DIR="$BATS_TEST_DIRNAME/../../hooks/scripts"
   local toolargs
   toolargs=$(jq -n --arg path '/tmp/handler.go' --arg new_str "$content" '{"path":$path,"old_str":"","new_str":$new_str}')
   local input
-  input=$(jq -n --arg ta "$toolargs" '{"toolName":"edit","toolArgs":$ta}')
+  input=$(jq -n --arg args "$toolargs" '{"cwd":"/tmp","toolCalls":[{"id":"t1","name":"edit","args":$args}]}')
   local tmpf; tmpf=$(mktemp); echo "$input" > "$tmpf"
   run bash -c "'$SCRIPTS_DIR/pre-tool.sh' < '$tmpf'"
   rm -f "$tmpf"
@@ -120,7 +126,7 @@ SCRIPTS_DIR="$BATS_TEST_DIRNAME/../../hooks/scripts"
   local toolargs
   toolargs=$(jq -n --arg path '/tmp/client.ts' --arg ft "$content" '{"path":$path,"file_text":$ft}')
   local input
-  input=$(jq -n --arg ta "$toolargs" '{"toolName":"create","toolArgs":$ta}')
+  input=$(jq -n --arg args "$toolargs" '{"cwd":"/tmp","toolCalls":[{"id":"t1","name":"create","args":$args}]}')
   local tmpf; tmpf=$(mktemp); echo "$input" > "$tmpf"
   run bash -c "'$SCRIPTS_DIR/pre-tool.sh' < '$tmpf'"
   rm -f "$tmpf"
@@ -135,7 +141,7 @@ SCRIPTS_DIR="$BATS_TEST_DIRNAME/../../hooks/scripts"
   local toolargs
   toolargs=$(jq -n --arg path '/tmp/handler_test.go' --arg new_str "$content" '{"path":$path,"old_str":"","new_str":$new_str}')
   local input
-  input=$(jq -n --arg ta "$toolargs" '{"toolName":"edit","toolArgs":$ta}')
+  input=$(jq -n --arg args "$toolargs" '{"cwd":"/tmp","toolCalls":[{"id":"t1","name":"edit","args":$args}]}')
   local tmpf; tmpf=$(mktemp); echo "$input" > "$tmpf"
   run bash -c "'$SCRIPTS_DIR/pre-tool.sh' < '$tmpf'"
   rm -f "$tmpf"
@@ -143,17 +149,30 @@ SCRIPTS_DIR="$BATS_TEST_DIRNAME/../../hooks/scripts"
   [ -z "$output" ]
 }
 
-# ── pre-tool.sh: branch-guard ─────────────────────────────────────────────────
+# ── pre-tool.sh: branch-guard (bash) ─────────────────────────────────────────
+
+_make_main_repo() {
+  local repo; repo=$(mktemp -d)
+  git -C "$repo" init -q -b main 2>/dev/null || {
+    git -C "$repo" init -q
+    git -C "$repo" symbolic-ref HEAD refs/heads/main
+  }
+  echo "$repo"
+}
 
 @test "branch: allows git push to feature branch" {
-  local input='{"toolName":"bash","toolArgs":"{\"command\":\"git push origin feat/my-feature\"}"}'
+  local args; args=$(jq -n '{"command":"git push origin feat/my-feature"}')
+  local input
+  input=$(jq -n --arg args "$args" '{"cwd":"/tmp","toolCalls":[{"id":"t1","name":"bash","args":$args}]}')
   run bash -c "echo '$input' | '$SCRIPTS_DIR/pre-tool.sh'"
   [ "$status" -eq 0 ]
   [ -z "$output" ]
 }
 
 @test "branch: denies git push to main" {
-  local input='{"toolName":"bash","toolArgs":"{\"command\":\"git push origin main\"}"}'
+  local args; args=$(jq -n '{"command":"git push origin main"}')
+  local input
+  input=$(jq -n --arg args "$args" '{"cwd":"/tmp","toolCalls":[{"id":"t1","name":"bash","args":$args}]}')
   run bash -c "echo '$input' | '$SCRIPTS_DIR/pre-tool.sh'"
   [ "$status" -eq 0 ]
   decision="$(echo "$output" | jq -r '.permissionDecision')"
@@ -161,7 +180,9 @@ SCRIPTS_DIR="$BATS_TEST_DIRNAME/../../hooks/scripts"
 }
 
 @test "branch: denies git merge main" {
-  local input='{"toolName":"bash","toolArgs":"{\"command\":\"git merge main\"}"}'
+  local args; args=$(jq -n '{"command":"git merge main"}')
+  local input
+  input=$(jq -n --arg args "$args" '{"cwd":"/tmp","toolCalls":[{"id":"t1","name":"bash","args":$args}]}')
   run bash -c "echo '$input' | '$SCRIPTS_DIR/pre-tool.sh'"
   [ "$status" -eq 0 ]
   decision="$(echo "$output" | jq -r '.permissionDecision')"
@@ -169,58 +190,138 @@ SCRIPTS_DIR="$BATS_TEST_DIRNAME/../../hooks/scripts"
 }
 
 @test "branch: does not false-positive on git checkout -B main origin/main" {
-  local input='{"toolName":"bash","toolArgs":"{\"command\":\"git checkout -B main origin/main\"}"}'
+  local args; args=$(jq -n '{"command":"git checkout -B main origin/main"}')
+  local input
+  input=$(jq -n --arg args "$args" '{"cwd":"/tmp","toolCalls":[{"id":"t1","name":"bash","args":$args}]}')
   run bash -c "echo '$input' | '$SCRIPTS_DIR/pre-tool.sh'"
   [ "$status" -eq 0 ]
   [ -z "$output" ]
 }
 
 @test "branch: does not false-positive on cd && git commands with main in path" {
-  local input='{"toolName":"bash","toolArgs":"{\"command\":\"git merge --abort && git reset --hard origin/main\"}"}'
+  local args; args=$(jq -n '{"command":"git merge --abort && git reset --hard origin/main"}')
+  local input
+  input=$(jq -n --arg args "$args" '{"cwd":"/tmp","toolCalls":[{"id":"t1","name":"bash","args":$args}]}')
   run bash -c "echo '$input' | '$SCRIPTS_DIR/pre-tool.sh'"
   [ "$status" -eq 0 ]
   [ -z "$output" ]
 }
 
 @test "branch: denies git commit --no-verify" {
-  local input='{"toolName":"bash","toolArgs":"{\"command\":\"git commit -m msg --no-verify\"}"}'
+  local args; args=$(jq -n '{"command":"git commit -m msg --no-verify"}')
+  local input
+  input=$(jq -n --arg args "$args" '{"cwd":"/tmp","toolCalls":[{"id":"t1","name":"bash","args":$args}]}')
   run bash -c "echo '$input' | '$SCRIPTS_DIR/pre-tool.sh'"
   [ "$status" -eq 0 ]
   decision="$(echo "$output" | jq -r '.permissionDecision')"
   [ "$decision" = "deny" ]
 }
 
+# ── pre-tool.sh: branch-first-guard (edit/create on main) ────────────────────
+
+@test "branch-first: denies edit of file in main-branch repo" {
+  local repo; repo=$(_make_main_repo)
+  local toolargs
+  toolargs=$(jq -n --arg path "$repo/main.go" '{"path":$path,"old_str":"","new_str":"x"}')
+  local input
+  input=$(jq -n --arg args "$toolargs" --arg cwd "$repo" '{"cwd":$cwd,"toolCalls":[{"id":"t1","name":"edit","args":$args}]}')
+  local tmpf; tmpf=$(mktemp); echo "$input" > "$tmpf"
+  run bash -c "'$SCRIPTS_DIR/pre-tool.sh' < '$tmpf'"
+  rm -f "$tmpf"; rm -rf "$repo"
+  [ "$status" -eq 0 ]
+  decision="$(echo "$output" | jq -r '.permissionDecision')"
+  [ "$decision" = "deny" ]
+}
+
+@test "branch-first: denies create of file in main-branch repo" {
+  local repo; repo=$(_make_main_repo)
+  local toolargs
+  toolargs=$(jq -n --arg path "$repo/new.go" '{"path":$path,"file_text":"x"}')
+  local input
+  input=$(jq -n --arg args "$toolargs" --arg cwd "$repo" '{"cwd":$cwd,"toolCalls":[{"id":"t1","name":"create","args":$args}]}')
+  local tmpf; tmpf=$(mktemp); echo "$input" > "$tmpf"
+  run bash -c "'$SCRIPTS_DIR/pre-tool.sh' < '$tmpf'"
+  rm -f "$tmpf"; rm -rf "$repo"
+  [ "$status" -eq 0 ]
+  decision="$(echo "$output" | jq -r '.permissionDecision')"
+  [ "$decision" = "deny" ]
+}
+
+@test "branch-first: allows edit on feature branch" {
+  local repo; repo=$(_make_main_repo)
+  git -C "$repo" checkout -b feat/x -q 2>/dev/null || true
+  local toolargs
+  toolargs=$(jq -n --arg path "$repo/main.go" '{"path":$path,"old_str":"","new_str":"x"}')
+  local input
+  input=$(jq -n --arg args "$toolargs" --arg cwd "$repo" '{"cwd":$cwd,"toolCalls":[{"id":"t1","name":"edit","args":$args}]}')
+  local tmpf; tmpf=$(mktemp); echo "$input" > "$tmpf"
+  run bash -c "'$SCRIPTS_DIR/pre-tool.sh' < '$tmpf'"
+  rm -f "$tmpf"; rm -rf "$repo"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
+@test "branch-first: allows edit when directory is not a git repo" {
+  local toolargs
+  toolargs=$(jq -n '{"path":"/tmp/file.go","old_str":"","new_str":"x"}')
+  local input
+  input=$(jq -n --arg args "$toolargs" '{"cwd":"/tmp","toolCalls":[{"id":"t1","name":"edit","args":$args}]}')
+  local tmpf; tmpf=$(mktemp); echo "$input" > "$tmpf"
+  run bash -c "'$SCRIPTS_DIR/pre-tool.sh' < '$tmpf'"
+  rm -f "$tmpf"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
 # ── pre-tool.sh: migration-guard ──────────────────────────────────────────────
 
 @test "migration: allows normal SQL commands outside migrations" {
-  local input='{"toolName":"bash","toolArgs":"{\"command\":\"psql -c \\\"SELECT * FROM users\\\"\"}"}'
+  local args; args=$(jq -n '{"command":"psql -c \"SELECT * FROM users\""}')
+  local input
+  input=$(jq -n --arg args "$args" '{"cwd":"/tmp","toolCalls":[{"id":"t1","name":"bash","args":$args}]}')
   run bash -c "echo '$input' | '$SCRIPTS_DIR/pre-tool.sh'"
   [ "$status" -eq 0 ]
   [ -z "$output" ]
 }
 
 @test "migration: denies DROP TABLE in migration command" {
-  local input='{"toolName":"bash","toolArgs":"{\"command\":\"psql migrations/0001.sql <<< DROP TABLE users\"}"}'
-  run bash -c "echo '$input' | '$SCRIPTS_DIR/pre-tool.sh'"
+  local cmd='psql migrations/0001.sql <<< DROP TABLE users'
+  local args; args=$(jq -n --arg command "$cmd" '{"command":$command}')
+  local input
+  input=$(jq -n --arg args "$args" '{"cwd":"/tmp","toolCalls":[{"id":"t1","name":"bash","args":$args}]}')
+  local tmpf; tmpf=$(mktemp); echo "$input" > "$tmpf"
+  run bash -c "'$SCRIPTS_DIR/pre-tool.sh' < '$tmpf'"
+  rm -f "$tmpf"
   [ "$status" -eq 0 ]
   decision="$(echo "$output" | jq -r '.permissionDecision')"
   [ "$decision" = "deny" ]
 }
 
 @test "migration: denies TRUNCATE TABLE in migration path" {
-  local input='{"toolName":"bash","toolArgs":"{\"command\":\"cat migrations/0002.sql | grep TRUNCATE TABLE\"}"}'
-  run bash -c "echo '$input' | '$SCRIPTS_DIR/pre-tool.sh'"
+  local cmd='cat migrations/0002.sql | grep TRUNCATE TABLE'
+  local args; args=$(jq -n --arg command "$cmd" '{"command":$command}')
+  local input
+  input=$(jq -n --arg args "$args" '{"cwd":"/tmp","toolCalls":[{"id":"t1","name":"bash","args":$args}]}')
+  local tmpf; tmpf=$(mktemp); echo "$input" > "$tmpf"
+  run bash -c "'$SCRIPTS_DIR/pre-tool.sh' < '$tmpf'"
+  rm -f "$tmpf"
   [ "$status" -eq 0 ]
   decision="$(echo "$output" | jq -r '.permissionDecision')"
   [ "$decision" = "deny" ]
 }
 
 @test "migration: allows CREATE TABLE in migration" {
-  local input='{"toolName":"bash","toolArgs":"{\"command\":\"psql migrations/0003.sql # CREATE TABLE events\"}"}'
-  run bash -c "echo '$input' | '$SCRIPTS_DIR/pre-tool.sh'"
+  local cmd='psql migrations/0003.sql # CREATE TABLE events'
+  local args; args=$(jq -n --arg command "$cmd" '{"command":$command}')
+  local input
+  input=$(jq -n --arg args "$args" '{"cwd":"/tmp","toolCalls":[{"id":"t1","name":"bash","args":$args}]}')
+  local tmpf; tmpf=$(mktemp); echo "$input" > "$tmpf"
+  run bash -c "'$SCRIPTS_DIR/pre-tool.sh' < '$tmpf'"
+  rm -f "$tmpf"
   [ "$status" -eq 0 ]
   [ -z "$output" ]
 }
+
 
 # ── pre-tool.sh: no-comments-guard ───────────────────────────────────────────
 
@@ -230,7 +331,7 @@ SCRIPTS_DIR="$BATS_TEST_DIRNAME/../../hooks/scripts"
   local toolargs
   toolargs=$(jq -n --arg path '/tmp/handler.go' --arg new_str "$content" '{"path":$path,"old_str":"","new_str":$new_str}')
   local input
-  input=$(jq -n --arg ta "$toolargs" '{"toolName":"edit","toolArgs":$ta}')
+  input=$(jq -n --arg args "$toolargs" '{"cwd":"/tmp","toolCalls":[{"id":"t1","name":"edit","args":$args}]}')
   local tmpf; tmpf=$(mktemp); echo "$input" > "$tmpf"
   run bash -c "'$SCRIPTS_DIR/pre-tool.sh' < '$tmpf'"
   rm -f "$tmpf"
@@ -245,7 +346,7 @@ SCRIPTS_DIR="$BATS_TEST_DIRNAME/../../hooks/scripts"
   local toolargs
   toolargs=$(jq -n --arg path '/tmp/utils.ts' --arg ft "$content" '{"path":$path,"file_text":$ft}')
   local input
-  input=$(jq -n --arg ta "$toolargs" '{"toolName":"create","toolArgs":$ta}')
+  input=$(jq -n --arg args "$toolargs" '{"cwd":"/tmp","toolCalls":[{"id":"t1","name":"create","args":$args}]}')
   local tmpf; tmpf=$(mktemp); echo "$input" > "$tmpf"
   run bash -c "'$SCRIPTS_DIR/pre-tool.sh' < '$tmpf'"
   rm -f "$tmpf"
@@ -260,7 +361,7 @@ SCRIPTS_DIR="$BATS_TEST_DIRNAME/../../hooks/scripts"
   local toolargs
   toolargs=$(jq -n --arg path '/tmp/config.py' --arg new_str "$content" '{"path":$path,"old_str":"","new_str":$new_str}')
   local input
-  input=$(jq -n --arg ta "$toolargs" '{"toolName":"edit","toolArgs":$ta}')
+  input=$(jq -n --arg args "$toolargs" '{"cwd":"/tmp","toolCalls":[{"id":"t1","name":"edit","args":$args}]}')
   local tmpf; tmpf=$(mktemp); echo "$input" > "$tmpf"
   run bash -c "'$SCRIPTS_DIR/pre-tool.sh' < '$tmpf'"
   rm -f "$tmpf"
@@ -275,7 +376,7 @@ SCRIPTS_DIR="$BATS_TEST_DIRNAME/../../hooks/scripts"
   local toolargs
   toolargs=$(jq -n --arg path '/tmp/script.py' --arg ft "$content" '{"path":$path,"file_text":$ft}')
   local input
-  input=$(jq -n --arg ta "$toolargs" '{"toolName":"create","toolArgs":$ta}')
+  input=$(jq -n --arg args "$toolargs" '{"cwd":"/tmp","toolCalls":[{"id":"t1","name":"create","args":$args}]}')
   local tmpf; tmpf=$(mktemp); echo "$input" > "$tmpf"
   run bash -c "'$SCRIPTS_DIR/pre-tool.sh' < '$tmpf'"
   rm -f "$tmpf"
@@ -289,7 +390,7 @@ SCRIPTS_DIR="$BATS_TEST_DIRNAME/../../hooks/scripts"
   local toolargs
   toolargs=$(jq -n --arg path '/tmp/auth_test.go' --arg new_str "$content" '{"path":$path,"old_str":"","new_str":$new_str}')
   local input
-  input=$(jq -n --arg ta "$toolargs" '{"toolName":"edit","toolArgs":$ta}')
+  input=$(jq -n --arg args "$toolargs" '{"cwd":"/tmp","toolCalls":[{"id":"t1","name":"edit","args":$args}]}')
   local tmpf; tmpf=$(mktemp); echo "$input" > "$tmpf"
   run bash -c "'$SCRIPTS_DIR/pre-tool.sh' < '$tmpf'"
   rm -f "$tmpf"
@@ -303,7 +404,7 @@ SCRIPTS_DIR="$BATS_TEST_DIRNAME/../../hooks/scripts"
   local toolargs
   toolargs=$(jq -n --arg path '/tmp/Makefile' --arg ft "$content" '{"path":$path,"file_text":$ft}')
   local input
-  input=$(jq -n --arg ta "$toolargs" '{"toolName":"create","toolArgs":$ta}')
+  input=$(jq -n --arg args "$toolargs" '{"cwd":"/tmp","toolCalls":[{"id":"t1","name":"create","args":$args}]}')
   local tmpf; tmpf=$(mktemp); echo "$input" > "$tmpf"
   run bash -c "'$SCRIPTS_DIR/pre-tool.sh' < '$tmpf'"
   rm -f "$tmpf"
@@ -317,7 +418,7 @@ SCRIPTS_DIR="$BATS_TEST_DIRNAME/../../hooks/scripts"
   local toolargs
   toolargs=$(jq -n --arg path '/tmp/README.md' --arg ft "$content" '{"path":$path,"file_text":$ft}')
   local input
-  input=$(jq -n --arg ta "$toolargs" '{"toolName":"create","toolArgs":$ta}')
+  input=$(jq -n --arg args "$toolargs" '{"cwd":"/tmp","toolCalls":[{"id":"t1","name":"create","args":$args}]}')
   local tmpf; tmpf=$(mktemp); echo "$input" > "$tmpf"
   run bash -c "'$SCRIPTS_DIR/pre-tool.sh' < '$tmpf'"
   rm -f "$tmpf"
@@ -326,6 +427,7 @@ SCRIPTS_DIR="$BATS_TEST_DIRNAME/../../hooks/scripts"
 }
 
 # ── pipeline-chainguard.sh ────────────────────────────────────────────────────
+
 
 @test "chainguard: ignores non-bash tools" {
   local input='{"toolName":"edit","toolArgs":{"path":"/tmp/f.go","new_str":"x"},"toolResult":{"textResultForLlm":"ok","resultType":"success"}}'

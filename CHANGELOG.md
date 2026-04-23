@@ -1,6 +1,15 @@
 # Changelog
 
-## [0.6.0]
+## [0.7.0]
+
+- fix(hooks/pre-tool): read `toolCalls` array from `preToolUse` input (was incorrectly reading `.toolName`/`.toolArgs` — all guards were silently bypassed)
+- fix(hooks/pre-tool): handle unborn branches via `symbolic-ref` fallback in `_current_branch_for_path`
+- feat(hooks/pre-tool): add `.bats` and `/test/` to exemption patterns in `_is_test_or_config`
+- feat(hooks/pre-tool): extract `CWD` from hook input for branch-first bash guard
+- test(hooks): update all pre-tool tests to `toolCalls` input format
+- test(hooks): add 4 branch-first-guard tests for `edit`/`create` on main branch
+
+
 
 - feat(hooks/pre-tool): add `branch-first-guard` — blocks `edit`/`create` when current branch is `main`/`master`, requires feature branch creation first
 - feat(hooks/pre-tool): extend `branch-first-guard` to `bash` tool — also blocks shell-level file writes (`echo >`, `cat >`, `tee`, `sed -i`) on `main`/`master`
