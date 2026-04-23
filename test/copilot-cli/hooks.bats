@@ -261,6 +261,20 @@ _make_main_repo() {
   [ -z "$output" ]
 }
 
+@test "branch-first: denies create of file in new subdirectory on main" {
+  local repo; repo=$(_make_main_repo)
+  local toolargs
+  toolargs=$(jq -n --arg path "$repo/bin/new-tool" '{"path":$path,"file_text":"x"}')
+  local input
+  input=$(jq -n --arg args "$toolargs" --arg cwd "$repo" '{"cwd":$cwd,"toolCalls":[{"id":"t1","name":"create","args":$args}]}')
+  local tmpf; tmpf=$(mktemp); echo "$input" > "$tmpf"
+  run bash -c "'$SCRIPTS_DIR/pre-tool.sh' < '$tmpf'"
+  rm -f "$tmpf"; rm -rf "$repo"
+  [ "$status" -eq 0 ]
+  decision="$(echo "$output" | jq -r '.permissionDecision')"
+  [ "$decision" = "deny" ]
+}
+
 @test "branch-first: allows edit when directory is not a git repo" {
   local toolargs
   toolargs=$(jq -n '{"path":"/tmp/file.go","old_str":"","new_str":"x"}')
