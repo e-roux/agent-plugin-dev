@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.6.0]
+
+- feat(hooks/pre-tool): add `branch-first-guard` — blocks `edit`/`create` when current branch is `main`/`master`, requires feature branch creation first
+- feat(hooks/pre-tool): extend `branch-first-guard` to `bash` tool — also blocks shell-level file writes (`echo >`, `cat >`, `tee`, `sed -i`) on `main`/`master`
+- feat(hooks/scripts): add `branch-check-turn.sh` — Claude Code `UserPromptSubmit` hook injects branch status before every turn (proactive, not just at session start)
+- feat(hooks/policy.json): add `UserPromptSubmit` hook for Claude Code with `branch-check-turn.sh`
+- feat(skills/git): add branch-first workflow as first core principle with naming convention
+- feat(skills/dev): document dual-layer enforcement, updated guard table, expanded branch guard section
+- feat(doc/requirements): add `git-workflow.md` — acceptance criteria for branch-first enforcement
+
 ## [0.5.0]
 
 - Add `git` skill: opinionated commit/PR workflow with `make qa` quality gate, scoped conventional commits, and branch safety rules
