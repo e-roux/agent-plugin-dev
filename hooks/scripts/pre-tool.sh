@@ -65,8 +65,45 @@ if [ "$TOOL" = "edit" ] || [ "$TOOL" = "create" ]; then
   fi
 fi
 
+# ── branch-first-guard: block edit/create/bash-writes on main/master ─────────
+_current_branch_for_path() {
+  local dir="$1"
+  git -C "$dir" rev-parse --abbrev-ref HEAD 2>/dev/null || true
+}
+
+_is_on_protected_branch() {
+  local branch="$1"
+  [ "$branch" = "main" ] || [ "$branch" = "master" ]
+}
+
+_branch_first_deny() {
+  local branch="$1"
+  deny "Branch-first guard: you are on '$branch'. Create a feature branch first: git checkout -b <type>/<descriptive-slug>"
+}
+
+if [ "$TOOL" = "edit" ] || [ "$TOOL" = "create" ]; then
+  if [ -n "$FILE" ]; then
+    FILE_DIR=$(dirname "$FILE")
+    if [ -d "$FILE_DIR" ]; then
+      BRANCH=$(_current_branch_for_path "$FILE_DIR")
+      if _is_on_protected_branch "$BRANCH"; then
+        _branch_first_deny "$BRANCH"
+      fi
+    fi
+  fi
+fi
+
 [ "$TOOL" = "bash" ] || exit 0
 [ -z "$CMD" ] && exit 0
+
+# ── branch-first-guard (bash): also block shell-level file writes on main ─────
+# Catches: echo/printf > file, cat > file, tee file, sed -i, awk > file
+if printf '%s' "$CMD" | grep -qE '(>[[:space:]]+[^/dev]|>>[[:space:]]+[^/dev]|[[:space:]]tee[[:space:]][^-]|sed[[:space:]]+-[^ ]*i)'; then
+  BASH_BRANCH=$(_current_branch_for_path ".")
+  if _is_on_protected_branch "$BASH_BRANCH"; then
+    _branch_first_deny "$BASH_BRANCH"
+  fi
+fi
 
 # ── migration-guard: block destructive SQL in migration files ─────────────────
 if printf '%s' "$CMD" | grep -qiE '(migrations?/|\.sql)'; then
